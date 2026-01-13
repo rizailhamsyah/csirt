@@ -7,7 +7,7 @@ import type { GlobeConfig } from "@/components/ui/globe"
 const World = dynamic(() => import("@/components/ui/globe").then((mod) => mod.World), {
   ssr: false,
   loading: () => (
-    <div className="flex items-center justify-center w-full h-full min-h-[400px]">
+    <div className="flex items-center justify-center w-full h-full min-h-100">
       <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   ),
