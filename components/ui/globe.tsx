@@ -227,7 +227,7 @@ export function Globe({ globeConfig, data }: WorldProps) {
       .atmosphereAltitude(defaultProps.atmosphereAltitude)
       .hexPolygonColor(() => defaultProps.polygonColor);
 
-    // Generate deterministic stroke values based on data index to avoid hydration mismatch
+    // Generate deterministic stroke values based on order property to avoid hydration mismatch
     const strokeValues = [0.32, 0.28, 0.3];
     
     globeRef.current
@@ -238,7 +238,11 @@ export function Globe({ globeConfig, data }: WorldProps) {
       .arcEndLng((d) => (d as { endLng: number }).endLng * 1)
       .arcColor((e: any) => (e as { color: string }).color)
       .arcAltitude((e) => (e as { arcAlt: number }).arcAlt * 1)
-      .arcStroke((e: any, i: number) => strokeValues[i % strokeValues.length])
+      .arcStroke((e: any) => {
+        // Use order property to get deterministic value
+        const order = (e as { order: number }).order || 0;
+        return strokeValues[order % strokeValues.length];
+      })
       .arcDashLength(defaultProps.arcLength)
       .arcDashInitialGap((e) => (e as { order: number }).order * 1)
       .arcDashGap(15)
