@@ -12,24 +12,87 @@ let Fog: any;
 let PerspectiveCamera: any;
 let Vector3: any;
 
-// Lazy load Three.js modules
-async function loadThreeModules() {
+// Lazy load Three.js modules with retry mechanism
+async function loadThreeModules(retryCount = 0): Promise<boolean> {
   if (typeof window === "undefined") return false;
   
+  const MAX_RETRIES = 3;
+  
   try {
-    const threeModule = await import("three");
-    const globeModule = await import("three-globe");
+    // Try to import three module
+    let threeModule;
+    try {
+      threeModule = await import("three");
+    } catch (threeError) {
+      console.error("Failed to import 'three' module:", threeError);
+      if (retryCount < MAX_RETRIES) {
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 500 * (retryCount + 1)));
+        return loadThreeModules(retryCount + 1);
+      }
+      throw new Error("Failed to load 'three' module after retries");
+    }
+    
+    // Try to import three-globe module
+    let globeModule;
+    try {
+      globeModule = await import("three-globe");
+    } catch (globeError) {
+      console.error("Failed to import 'three-globe' module:", globeError);
+      if (retryCount < MAX_RETRIES) {
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 500 * (retryCount + 1)));
+        return loadThreeModules(retryCount + 1);
+      }
+      throw new Error("Failed to load 'three-globe' module after retries");
+    }
+    
+    // Assign modules
+    if (!threeModule || !globeModule) {
+      throw new Error("Modules imported but are undefined");
+    }
     
     Color = threeModule.Color;
     Scene = threeModule.Scene;
     Fog = threeModule.Fog;
     PerspectiveCamera = threeModule.PerspectiveCamera;
     Vector3 = threeModule.Vector3;
-    ThreeGlobe = globeModule.default;
+    ThreeGlobe = globeModule.default || globeModule;
     
+    // Verify all modules are loaded
+    if (!Color || !Scene || !Fog || !PerspectiveCamera || !Vector3 || !ThreeGlobe) {
+      throw new Error("Some Three.js modules failed to load");
+    }
+    
+    console.log("Three.js modules loaded successfully");
     return true;
-  } catch (error) {
-    console.error("Failed to load Three.js modules:", error);
+  } catch (error: any) {
+    const errorMessage = error?.message || String(error);
+    const errorStack = error?.stack || "";
+    
+    console.error("Failed to load Three.js modules:", {
+      error: errorMessage,
+      stack: errorStack,
+      retryCount,
+      maxRetries: MAX_RETRIES
+    });
+    
+    // Log more details for debugging
+    if (errorMessage.includes("Cannot find module") || errorMessage.includes("Failed to fetch")) {
+      console.error("Module resolution error - check if 'three' and 'three-globe' are installed");
+    } else if (errorMessage.includes("NetworkError") || errorMessage.includes("Failed to fetch")) {
+      console.error("Network error - check internet connection");
+    }
+    
+    if (retryCount < MAX_RETRIES) {
+      const delay = 1000 * (retryCount + 1);
+      console.log(`Retrying module load in ${delay}ms... (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+      // Wait before retry with exponential backoff
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return loadThreeModules(retryCount + 1);
+    }
+    
+    console.error("All retry attempts failed. Three.js modules could not be loaded.");
     return false;
   }
 }
@@ -428,6 +491,8 @@ export function World(props: WorldProps) {
   const [mounted, setMounted] = useState(false);
   const [modulesReady, setModulesReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -436,12 +501,28 @@ export function World(props: WorldProps) {
       setMounted(true);
       
       try {
-        // Load Three.js modules first
+        // Load Three.js modules first with detailed error handling
         const loaded = await loadThreeModules();
         if (loaded) {
           setModulesReady(true);
+          // Clear timeout if modules are ready
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+            timeoutRef.current = null;
+          }
         } else {
-          setError("Gagal memuat modul Three.js");
+          // Check if it's a network issue or module issue
+          const isOnline = navigator.onLine;
+          if (!isOnline) {
+            setError("Tidak ada koneksi internet. Silakan periksa koneksi Anda.");
+          } else {
+            setError("Gagal memuat modul Three.js. Silakan refresh halaman atau periksa console untuk detail error.");
+          }
+          // Clear timeout on error
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+            timeoutRef.current = null;
+          }
           return;
         }
         
@@ -453,31 +534,77 @@ export function World(props: WorldProps) {
             const retryExtended = await ensureExtended();
             if (!retryExtended) {
               setError("Gagal menginisialisasi ThreeGlobe");
+              // Clear timeout on error
+              if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+                timeoutRef.current = null;
+              }
+            } else {
+              // Clear timeout if extended successfully
+              if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+                timeoutRef.current = null;
+              }
             }
           }, 200);
+        } else {
+          // Clear timeout if extended successfully
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+            timeoutRef.current = null;
+          }
         }
         
         const available = isWebGLAvailable();
         setWebglAvailable(available);
+        
+        // Clear timeout if WebGL is available
+        if (available && timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
       } catch (err) {
         console.error("Error initializing World:", err);
         setError("Terjadi kesalahan saat memuat globe");
+        // Clear timeout on error
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
       }
     };
     
     // Add timeout to prevent infinite loading
-    const timeoutId = setTimeout(() => {
-      if (!modulesReady) {
-        setError("Waktu loading terlalu lama. Silakan refresh halaman.");
-      }
-    }, 10000); // 10 seconds timeout
+    // Only set timeout if not already initialized and no timeout is already set
+    if (!isInitialized && !timeoutRef.current) {
+      timeoutRef.current = setTimeout(() => {
+        // Only show error if still loading (modules not ready and no error set)
+        // Double check to avoid race condition
+        if (!modulesReady && !error && !isInitialized) {
+          setError("Waktu loading terlalu lama. Silakan refresh halaman.");
+        }
+        timeoutRef.current = null;
+      }, 15000); // 15 seconds timeout (increased to give more time)
+    }
     
     init();
     
     return () => {
-      clearTimeout(timeoutId);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
     };
   }, []);
+  
+  // Clear timeout when globe is successfully initialized
+  useEffect(() => {
+    if (modulesReady && webglAvailable && !error && timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+      setIsInitialized(true);
+    }
+  }, [modulesReady, webglAvailable, error]);
 
   // Show error if any
   if (error) {
