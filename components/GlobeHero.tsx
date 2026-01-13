@@ -423,7 +423,7 @@ export function GlobeHero() {
   // Show loading state until mounted
   if (!mounted) {
     return (
-      <div className="flex items-center justify-center w-full h-full min-h-[400px]">
+      <div className="flex items-center justify-center w-full h-full min-h-100">
         <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );

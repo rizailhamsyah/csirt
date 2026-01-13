@@ -609,7 +609,7 @@ export function World(props: WorldProps) {
   // Show error if any
   if (error) {
     return (
-      <div className="flex items-center justify-center w-full h-full min-h-[400px]">
+      <div className="flex items-center justify-center w-full h-full min-h-100">
         <div className="text-center space-y-2">
           <p className="text-muted-foreground">{error}</p>
           <button
@@ -626,7 +626,7 @@ export function World(props: WorldProps) {
   // Don't render until mounted and modules are ready
   if (!mounted || !modulesReady) {
     return (
-      <div className="flex items-center justify-center w-full h-full min-h-[400px]">
+      <div className="flex items-center justify-center w-full h-full min-h-100">
         <div className="text-center space-y-2">
           <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-sm text-muted-foreground">Memuat globe...</p>
@@ -637,7 +637,7 @@ export function World(props: WorldProps) {
 
   if (!webglAvailable) {
     return (
-      <div className="flex items-center justify-center w-full h-full min-h-[400px]">
+      <div className="flex items-center justify-center w-full h-full min-h-100">
         <div className="text-center">
           <p className="text-muted-foreground">WebGL tidak tersedia</p>
         </div>
@@ -648,7 +648,7 @@ export function World(props: WorldProps) {
   // Create scene and camera only after WebGL is confirmed available and modules are loaded
   if (!Scene || !Fog || !PerspectiveCamera || !Vector3) {
     return (
-      <div className="flex items-center justify-center w-full h-full min-h-[400px]">
+      <div className="flex items-center justify-center w-full h-full min-h-100">
         <div className="text-center space-y-2">
           <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-sm text-muted-foreground">Memuat modul Three.js...</p>
@@ -667,7 +667,7 @@ export function World(props: WorldProps) {
   } catch (error) {
     console.error("Failed to create Three.js scene/camera:", error);
     return (
-      <div className="flex items-center justify-center w-full h-full min-h-[400px]">
+      <div className="flex items-center justify-center w-full h-full min-h-100">
         <div className="text-center">
           <p className="text-muted-foreground">Gagal memuat globe</p>
         </div>
