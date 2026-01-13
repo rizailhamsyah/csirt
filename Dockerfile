@@ -37,6 +37,7 @@ COPY --from=build /app/package*.json ./
 COPY --from=build /app/.env* ./
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/.next ./.next
-COPY --from=build /app ./
+# Copy public folder explicitly for static files (PDF, images, etc.)
+COPY --from=build /app/public ./public
 
 CMD [ "npm", "start" ]
