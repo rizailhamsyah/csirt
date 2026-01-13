@@ -14,12 +14,42 @@ declare module "@react-three/fiber" {
   }
 }
 
-// Extend hanya di client-side dan setelah window tersedia
-if (typeof window !== "undefined") {
+// Flag untuk memastikan extend hanya dipanggil sekali
+let isExtended = false;
+
+// Function untuk extend ThreeGlobe dengan pengecekan WebGL
+// Dipanggil hanya setelah WebGL context tersedia
+function ensureExtended() {
+  if (isExtended) return true;
+  
+  if (typeof window === "undefined") return false;
+  
   try {
+    // Check WebGL availability sebelum extend
+    const canvas = document.createElement("canvas");
+    const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+    if (!gl) {
+      return false;
+    }
+    
+    // Extend ThreeGlobe - ini akan mengakses Three.js constants
+    // Pastikan ini dipanggil setelah Three.js fully loaded
     extend({ ThreeGlobe: ThreeGlobe });
+    isExtended = true;
+    return true;
   } catch (error) {
-    console.warn("Failed to extend ThreeGlobe:", error);
+    // Jika error, coba lagi setelah delay
+    if (!isExtended) {
+      setTimeout(() => {
+        try {
+          extend({ ThreeGlobe: ThreeGlobe });
+          isExtended = true;
+        } catch (retryError) {
+          console.warn("Failed to extend ThreeGlobe:", retryError);
+        }
+      }, 50);
+    }
+    return false;
   }
 }
 
@@ -96,15 +126,32 @@ export function Globe({ globeConfig, data }: WorldProps) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     
-    if (!globeRef.current && groupRef.current) {
-      try {
-        globeRef.current = new ThreeGlobe();
-        (groupRef.current as any).add(globeRef.current);
-        setIsInitialized(true);
-      } catch (error) {
-        console.error("Failed to initialize ThreeGlobe:", error);
+    // Function to initialize globe after ensuring ThreeGlobe is extended
+    const initGlobe = () => {
+      if (!isExtended) {
+        // Try to extend first
+        if (!ensureExtended()) {
+          // If extend failed, retry after a short delay
+          setTimeout(initGlobe, 50);
+          return;
+        }
       }
-    }
+      
+      if (!globeRef.current && groupRef.current) {
+        try {
+          globeRef.current = new ThreeGlobe();
+          (groupRef.current as any).add(globeRef.current);
+          setIsInitialized(true);
+        } catch (error) {
+          console.error("Failed to initialize ThreeGlobe:", error);
+          // Retry after delay if initialization failed
+          setTimeout(initGlobe, 100);
+        }
+      }
+    };
+    
+    // Start initialization
+    initGlobe();
   }, []);
 
   // Build material when globe is initialized or when relevant props change
@@ -303,8 +350,15 @@ export function World(props: WorldProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     setMounted(true);
-    setWebglAvailable(isWebGLAvailable());
+    
+    // Ensure ThreeGlobe is extended before checking WebGL
+    ensureExtended();
+    
+    const available = isWebGLAvailable();
+    setWebglAvailable(available);
   }, []);
 
   // Don't render until mounted to prevent hydration mismatch
@@ -326,17 +380,44 @@ export function World(props: WorldProps) {
     );
   }
 
-  const scene = new Scene();
-  scene.fog = new Fog(0xffffff, 400, 2000);
+  // Create scene and camera only after WebGL is confirmed available
+  let scene: Scene;
+  let camera: PerspectiveCamera;
+  
+  try {
+    scene = new Scene();
+    scene.fog = new Fog(0xffffff, 400, 2000);
+    camera = new PerspectiveCamera(50, aspect, 180, 1800);
+  } catch (error) {
+    console.error("Failed to create Three.js scene/camera:", error);
+    return (
+      <div className="flex items-center justify-center w-full h-full min-h-[400px]">
+        <div className="text-center">
+          <p className="text-muted-foreground">Gagal memuat globe</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <Canvas 
       scene={scene} 
-      camera={new PerspectiveCamera(50, aspect, 180, 1800)}
+      camera={camera}
       gl={{ 
         antialias: true,
         alpha: true,
         powerPreference: "high-performance"
+      }}
+      onCreated={({ gl }) => {
+        // Ensure WebGL context is properly initialized
+        // Extend ThreeGlobe after Canvas is created and WebGL context is available
+        try {
+          if (gl && gl.getContext()) {
+            ensureExtended();
+          }
+        } catch (error) {
+          console.error("WebGL context error:", error);
+        }
       }}
     >
       <WebGLRendererConfig />
