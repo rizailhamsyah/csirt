@@ -154,6 +154,8 @@ export function Globe({ globeConfig, data }: WorldProps) {
   const globeRef = useRef<any | null>(null);
   const groupRef = useRef(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const retryCountRef = useRef(0);
+  const MAX_RETRIES = 5;
 
   const defaultProps = {
     pointSize: 1,
@@ -178,12 +180,19 @@ export function Globe({ globeConfig, data }: WorldProps) {
     
     // Function to initialize globe after ensuring ThreeGlobe is extended
     const initGlobe = async () => {
+      // Check retry limit
+      if (retryCountRef.current >= MAX_RETRIES) {
+        console.error("Max retries reached for Globe initialization");
+        return;
+      }
+      
       if (!isExtended || !modulesLoaded) {
         // Try to extend first and load modules
         const extended = await ensureExtended();
         if (!extended) {
+          retryCountRef.current++;
           // If extend failed, retry after a short delay
-          setTimeout(initGlobe, 50);
+          setTimeout(initGlobe, 100);
           return;
         }
       }
@@ -195,14 +204,28 @@ export function Globe({ globeConfig, data }: WorldProps) {
           setIsInitialized(true);
         } catch (error) {
           console.error("Failed to initialize ThreeGlobe:", error);
+          retryCountRef.current++;
           // Retry after delay if initialization failed
-          setTimeout(initGlobe, 100);
+          if (retryCountRef.current < MAX_RETRIES) {
+            setTimeout(initGlobe, 200);
+          }
         }
       }
     };
     
-    // Start initialization
+    // Start initialization with timeout
+    const timeoutId = setTimeout(() => {
+      if (!isInitialized && retryCountRef.current < MAX_RETRIES) {
+        console.warn("Globe initialization timeout, retrying...");
+        initGlobe();
+      }
+    }, 1000);
+    
     initGlobe();
+    
+    return () => {
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   // Build material when globe is initialized or when relevant props change
@@ -404,6 +427,7 @@ export function World(props: WorldProps) {
   const [webglAvailable, setWebglAvailable] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [modulesReady, setModulesReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -411,27 +435,75 @@ export function World(props: WorldProps) {
     const init = async () => {
       setMounted(true);
       
-      // Load Three.js modules first
-      const loaded = await loadThreeModules();
-      if (loaded) {
-        setModulesReady(true);
+      try {
+        // Load Three.js modules first
+        const loaded = await loadThreeModules();
+        if (loaded) {
+          setModulesReady(true);
+        } else {
+          setError("Gagal memuat modul Three.js");
+          return;
+        }
+        
+        // Ensure ThreeGlobe is extended before checking WebGL
+        const extended = await ensureExtended();
+        if (!extended) {
+          // Retry extend after a short delay
+          setTimeout(async () => {
+            const retryExtended = await ensureExtended();
+            if (!retryExtended) {
+              setError("Gagal menginisialisasi ThreeGlobe");
+            }
+          }, 200);
+        }
+        
+        const available = isWebGLAvailable();
+        setWebglAvailable(available);
+      } catch (err) {
+        console.error("Error initializing World:", err);
+        setError("Terjadi kesalahan saat memuat globe");
       }
-      
-      // Ensure ThreeGlobe is extended before checking WebGL
-      await ensureExtended();
-      
-      const available = isWebGLAvailable();
-      setWebglAvailable(available);
     };
     
+    // Add timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      if (!modulesReady) {
+        setError("Waktu loading terlalu lama. Silakan refresh halaman.");
+      }
+    }, 10000); // 10 seconds timeout
+    
     init();
+    
+    return () => {
+      clearTimeout(timeoutId);
+    };
   }, []);
+
+  // Show error if any
+  if (error) {
+    return (
+      <div className="flex items-center justify-center w-full h-full min-h-[400px]">
+        <div className="text-center space-y-2">
+          <p className="text-muted-foreground">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="text-sm text-primary hover:underline"
+          >
+            Refresh halaman
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Don't render until mounted and modules are ready
   if (!mounted || !modulesReady) {
     return (
       <div className="flex items-center justify-center w-full h-full min-h-[400px]">
-        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        <div className="text-center space-y-2">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-sm text-muted-foreground">Memuat globe...</p>
+        </div>
       </div>
     );
   }
@@ -450,8 +522,9 @@ export function World(props: WorldProps) {
   if (!Scene || !Fog || !PerspectiveCamera || !Vector3) {
     return (
       <div className="flex items-center justify-center w-full h-full min-h-[400px]">
-        <div className="text-center">
-          <p className="text-muted-foreground">Memuat modul Three.js...</p>
+        <div className="text-center space-y-2">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-sm text-muted-foreground">Memuat modul Three.js...</p>
         </div>
       </div>
     );
