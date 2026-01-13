@@ -1,25 +1,54 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Color, Scene, Fog, PerspectiveCamera, Vector3 } from "three";
-import ThreeGlobe from "three-globe";
 import { useThree, Canvas, extend } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import countries from "@/data/globe.json";
 
+// Dynamic imports untuk Three.js modules - hanya di-load di client-side
+let ThreeGlobe: any;
+let Color: any;
+let Scene: any;
+let Fog: any;
+let PerspectiveCamera: any;
+let Vector3: any;
+
+// Lazy load Three.js modules
+async function loadThreeModules() {
+  if (typeof window === "undefined") return false;
+  
+  try {
+    const threeModule = await import("three");
+    const globeModule = await import("three-globe");
+    
+    Color = threeModule.Color;
+    Scene = threeModule.Scene;
+    Fog = threeModule.Fog;
+    PerspectiveCamera = threeModule.PerspectiveCamera;
+    Vector3 = threeModule.Vector3;
+    ThreeGlobe = globeModule.default;
+    
+    return true;
+  } catch (error) {
+    console.error("Failed to load Three.js modules:", error);
+    return false;
+  }
+}
+
 declare module "@react-three/fiber" {
   interface ThreeElements {
     threeGlobe: ThreeElements["mesh"] & {
-      new (): ThreeGlobe;
+      new (): any;
     };
   }
 }
 
 // Flag untuk memastikan extend hanya dipanggil sekali
 let isExtended = false;
+let modulesLoaded = false;
 
-// Function untuk extend ThreeGlobe dengan pengecekan WebGL
+// Function untuk load modules dan extend ThreeGlobe dengan pengecekan WebGL
 // Dipanggil hanya setelah WebGL context tersedia
-function ensureExtended() {
+async function ensureExtended() {
   if (isExtended) return true;
   
   if (typeof window === "undefined") return false;
@@ -32,22 +61,43 @@ function ensureExtended() {
       return false;
     }
     
+    // Load Three.js modules jika belum di-load
+    if (!modulesLoaded) {
+      const loaded = await loadThreeModules();
+      if (!loaded) {
+        return false;
+      }
+      modulesLoaded = true;
+    }
+    
+    // Pastikan ThreeGlobe tersedia sebelum extend
+    if (!ThreeGlobe) {
+      return false;
+    }
+    
     // Extend ThreeGlobe - ini akan mengakses Three.js constants
-    // Pastikan ini dipanggil setelah Three.js fully loaded
+    // Pastikan ini dipanggil setelah Three.js fully loaded dan WebGL context tersedia
     extend({ ThreeGlobe: ThreeGlobe });
     isExtended = true;
     return true;
   } catch (error) {
+    console.warn("Failed to extend ThreeGlobe:", error);
     // Jika error, coba lagi setelah delay
     if (!isExtended) {
-      setTimeout(() => {
+      setTimeout(async () => {
         try {
-          extend({ ThreeGlobe: ThreeGlobe });
-          isExtended = true;
+          if (!modulesLoaded) {
+            await loadThreeModules();
+            modulesLoaded = true;
+          }
+          if (ThreeGlobe) {
+            extend({ ThreeGlobe: ThreeGlobe });
+            isExtended = true;
+          }
         } catch (retryError) {
-          console.warn("Failed to extend ThreeGlobe:", retryError);
+          console.warn("Failed to extend ThreeGlobe on retry:", retryError);
         }
-      }, 50);
+      }, 100);
     }
     return false;
   }
@@ -101,7 +151,7 @@ interface WorldProps {
 let numbersOfRings = [0];
 
 export function Globe({ globeConfig, data }: WorldProps) {
-  const globeRef = useRef<ThreeGlobe | null>(null);
+  const globeRef = useRef<any | null>(null);
   const groupRef = useRef(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -127,17 +177,18 @@ export function Globe({ globeConfig, data }: WorldProps) {
     if (typeof window === "undefined") return;
     
     // Function to initialize globe after ensuring ThreeGlobe is extended
-    const initGlobe = () => {
-      if (!isExtended) {
-        // Try to extend first
-        if (!ensureExtended()) {
+    const initGlobe = async () => {
+      if (!isExtended || !modulesLoaded) {
+        // Try to extend first and load modules
+        const extended = await ensureExtended();
+        if (!extended) {
           // If extend failed, retry after a short delay
           setTimeout(initGlobe, 50);
           return;
         }
       }
       
-      if (!globeRef.current && groupRef.current) {
+      if (!globeRef.current && groupRef.current && ThreeGlobe) {
         try {
           globeRef.current = new ThreeGlobe();
           (groupRef.current as any).add(globeRef.current);
@@ -157,12 +208,12 @@ export function Globe({ globeConfig, data }: WorldProps) {
   // Build material when globe is initialized or when relevant props change
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (!globeRef.current || !isInitialized) return;
+    if (!globeRef.current || !isInitialized || !Color) return;
 
     try {
       const globeMaterial = globeRef.current.globeMaterial() as unknown as {
-        color: Color;
-        emissive: Color;
+        color: any;
+        emissive: any;
         emissiveIntensity: number;
         shininess: number;
       };
@@ -232,25 +283,25 @@ export function Globe({ globeConfig, data }: WorldProps) {
     
     globeRef.current
       .arcsData(data)
-      .arcStartLat((d) => (d as { startLat: number }).startLat * 1)
-      .arcStartLng((d) => (d as { startLng: number }).startLng * 1)
-      .arcEndLat((d) => (d as { endLat: number }).endLat * 1)
-      .arcEndLng((d) => (d as { endLng: number }).endLng * 1)
+      .arcStartLat((d: any) => (d as { startLat: number }).startLat * 1)
+      .arcStartLng((d: any) => (d as { startLng: number }).startLng * 1)
+      .arcEndLat((d: any) => (d as { endLat: number }).endLat * 1)
+      .arcEndLng((d: any) => (d as { endLng: number }).endLng * 1)
       .arcColor((e: any) => (e as { color: string }).color)
-      .arcAltitude((e) => (e as { arcAlt: number }).arcAlt * 1)
+      .arcAltitude((e: any) => (e as { arcAlt: number }).arcAlt * 1)
       .arcStroke((e: any) => {
         // Use order property to get deterministic value
         const order = (e as { order: number }).order || 0;
         return strokeValues[order % strokeValues.length];
       })
       .arcDashLength(defaultProps.arcLength)
-      .arcDashInitialGap((e) => (e as { order: number }).order * 1)
+      .arcDashInitialGap((e: any) => (e as { order: number }).order * 1)
       .arcDashGap(15)
       .arcDashAnimateTime(() => defaultProps.arcTime);
 
     globeRef.current
       .pointsData(filteredPoints)
-      .pointColor((e) => (e as { color: string }).color)
+      .pointColor((e: any) => (e as { color: string }).color)
       .pointsMerge(true)
       .pointAltitude(0.0)
       .pointRadius(2);
@@ -352,21 +403,32 @@ export function World(props: WorldProps) {
   const { globeConfig } = props;
   const [webglAvailable, setWebglAvailable] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [modulesReady, setModulesReady] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     
-    setMounted(true);
+    const init = async () => {
+      setMounted(true);
+      
+      // Load Three.js modules first
+      const loaded = await loadThreeModules();
+      if (loaded) {
+        setModulesReady(true);
+      }
+      
+      // Ensure ThreeGlobe is extended before checking WebGL
+      await ensureExtended();
+      
+      const available = isWebGLAvailable();
+      setWebglAvailable(available);
+    };
     
-    // Ensure ThreeGlobe is extended before checking WebGL
-    ensureExtended();
-    
-    const available = isWebGLAvailable();
-    setWebglAvailable(available);
+    init();
   }, []);
 
-  // Don't render until mounted to prevent hydration mismatch
-  if (!mounted) {
+  // Don't render until mounted and modules are ready
+  if (!mounted || !modulesReady) {
     return (
       <div className="flex items-center justify-center w-full h-full min-h-[400px]">
         <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -384,9 +446,19 @@ export function World(props: WorldProps) {
     );
   }
 
-  // Create scene and camera only after WebGL is confirmed available
-  let scene: Scene;
-  let camera: PerspectiveCamera;
+  // Create scene and camera only after WebGL is confirmed available and modules are loaded
+  if (!Scene || !Fog || !PerspectiveCamera || !Vector3) {
+    return (
+      <div className="flex items-center justify-center w-full h-full min-h-[400px]">
+        <div className="text-center">
+          <p className="text-muted-foreground">Memuat modul Three.js...</p>
+        </div>
+      </div>
+    );
+  }
+
+  let scene: any;
+  let camera: any;
   
   try {
     scene = new Scene();
@@ -412,12 +484,12 @@ export function World(props: WorldProps) {
         alpha: true,
         powerPreference: "high-performance"
       }}
-      onCreated={({ gl }) => {
+      onCreated={async ({ gl }) => {
         // Ensure WebGL context is properly initialized
         // Extend ThreeGlobe after Canvas is created and WebGL context is available
         try {
           if (gl && gl.getContext()) {
-            ensureExtended();
+            await ensureExtended();
           }
         } catch (error) {
           console.error("WebGL context error:", error);
