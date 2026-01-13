@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import dynamic from "next/dynamic"
 import type { GlobeConfig } from "@/components/ui/globe"
 
@@ -23,6 +24,9 @@ type Position = {
 };
 
 export function GlobeHero() {
+  const [sampleArcs, setSampleArcs] = useState<Position[]>([]);
+  const [mounted, setMounted] = useState(false);
+
   const globeConfig: GlobeConfig = {
     pointSize: 4,
     globeColor: "#062056",
@@ -47,8 +51,11 @@ export function GlobeHero() {
   };
 
   const colors = ["#06b6d4", "#3b82f6", "#6366f1"];
-  
-  const sampleArcs: Position[] = [
+
+  // Generate arcs only on client-side after mount
+  useEffect(() => {
+    setMounted(true);
+    const arcs: Position[] = [
     {
       order: 1,
       startLat: -19.885592,
@@ -409,7 +416,18 @@ export function GlobeHero() {
       arcAlt: 0.3,
       color: colors[Math.floor(Math.random() * (colors.length - 1))],
     },
-  ];
+    ];
+    setSampleArcs(arcs);
+  }, []);
+
+  // Show loading state until mounted
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center w-full h-full min-h-[400px]">
+        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full h-full min-h-100 sm:min-h-125 lg:min-h-150 overflow-visible">

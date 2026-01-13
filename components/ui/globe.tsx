@@ -5,6 +5,7 @@ import ThreeGlobe from "three-globe";
 import { useThree, Canvas, extend } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import countries from "@/data/globe.json";
+
 declare module "@react-three/fiber" {
   interface ThreeElements {
     threeGlobe: ThreeElements["mesh"] & {
@@ -13,7 +14,14 @@ declare module "@react-three/fiber" {
   }
 }
 
-extend({ ThreeGlobe: ThreeGlobe });
+// Extend hanya di client-side dan setelah window tersedia
+if (typeof window !== "undefined") {
+  try {
+    extend({ ThreeGlobe: ThreeGlobe });
+  } catch (error) {
+    console.warn("Failed to extend ThreeGlobe:", error);
+  }
+}
 
 const RING_PROPAGATION_SPEED = 3;
 const aspect = 1.2;
@@ -86,27 +94,38 @@ export function Globe({ globeConfig, data }: WorldProps) {
 
   // Initialize globe only once
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     if (!globeRef.current && groupRef.current) {
-      globeRef.current = new ThreeGlobe();
-      (groupRef.current as any).add(globeRef.current);
-      setIsInitialized(true);
+      try {
+        globeRef.current = new ThreeGlobe();
+        (groupRef.current as any).add(globeRef.current);
+        setIsInitialized(true);
+      } catch (error) {
+        console.error("Failed to initialize ThreeGlobe:", error);
+      }
     }
   }, []);
 
   // Build material when globe is initialized or when relevant props change
   useEffect(() => {
+    if (typeof window === "undefined") return;
     if (!globeRef.current || !isInitialized) return;
 
-    const globeMaterial = globeRef.current.globeMaterial() as unknown as {
-      color: Color;
-      emissive: Color;
-      emissiveIntensity: number;
-      shininess: number;
-    };
-    globeMaterial.color = new Color(globeConfig.globeColor);
-    globeMaterial.emissive = new Color(globeConfig.emissive);
-    globeMaterial.emissiveIntensity = globeConfig.emissiveIntensity || 0.1;
-    globeMaterial.shininess = globeConfig.shininess || 0.9;
+    try {
+      const globeMaterial = globeRef.current.globeMaterial() as unknown as {
+        color: Color;
+        emissive: Color;
+        emissiveIntensity: number;
+        shininess: number;
+      };
+      globeMaterial.color = new Color(globeConfig.globeColor);
+      globeMaterial.emissive = new Color(globeConfig.emissive);
+      globeMaterial.emissiveIntensity = globeConfig.emissiveIntensity || 0.1;
+      globeMaterial.shininess = globeConfig.shininess || 0.9;
+    } catch (error) {
+      console.error("Failed to set globe material:", error);
+    }
   }, [
     isInitialized,
     globeConfig.globeColor,
@@ -117,9 +136,11 @@ export function Globe({ globeConfig, data }: WorldProps) {
 
   // Build data when globe is initialized or when data changes
   useEffect(() => {
+    if (typeof window === "undefined") return;
     if (!globeRef.current || !isInitialized || !data) return;
 
-    const arcs = data;
+    try {
+      const arcs = data;
     let points = [];
     for (let i = 0; i < arcs.length; i++) {
       const arc = arcs[i];
@@ -159,6 +180,9 @@ export function Globe({ globeConfig, data }: WorldProps) {
       .atmosphereAltitude(defaultProps.atmosphereAltitude)
       .hexPolygonColor(() => defaultProps.polygonColor);
 
+    // Generate deterministic stroke values based on data index to avoid hydration mismatch
+    const strokeValues = [0.32, 0.28, 0.3];
+    
     globeRef.current
       .arcsData(data)
       .arcStartLat((d) => (d as { startLat: number }).startLat * 1)
@@ -167,7 +191,7 @@ export function Globe({ globeConfig, data }: WorldProps) {
       .arcEndLng((d) => (d as { endLng: number }).endLng * 1)
       .arcColor((e: any) => (e as { color: string }).color)
       .arcAltitude((e) => (e as { arcAlt: number }).arcAlt * 1)
-      .arcStroke(() => [0.32, 0.28, 0.3][Math.round(Math.random() * 2)])
+      .arcStroke((e: any, i: number) => strokeValues[i % strokeValues.length])
       .arcDashLength(defaultProps.arcLength)
       .arcDashInitialGap((e) => (e as { order: number }).order * 1)
       .arcDashGap(15)
@@ -188,6 +212,9 @@ export function Globe({ globeConfig, data }: WorldProps) {
       .ringRepeatPeriod(
         (defaultProps.arcTime * defaultProps.arcLength) / defaultProps.rings,
       );
+    } catch (error) {
+      console.error("Failed to build globe data:", error);
+    }
   }, [
     isInitialized,
     data,
@@ -204,26 +231,31 @@ export function Globe({ globeConfig, data }: WorldProps) {
 
   // Handle rings animation with cleanup
   useEffect(() => {
+    if (typeof window === "undefined") return;
     if (!globeRef.current || !isInitialized || !data) return;
 
     const interval = setInterval(() => {
       if (!globeRef.current) return;
 
-      const newNumbersOfRings = genRandomNumbers(
-        0,
-        data.length,
-        Math.floor((data.length * 4) / 5),
-      );
+      try {
+        const newNumbersOfRings = genRandomNumbers(
+          0,
+          data.length,
+          Math.floor((data.length * 4) / 5),
+        );
 
-      const ringsData = data
-        .filter((d, i) => newNumbersOfRings.includes(i))
-        .map((d) => ({
-          lat: d.startLat,
-          lng: d.startLng,
-          color: d.color,
-        }));
+        const ringsData = data
+          .filter((d, i) => newNumbersOfRings.includes(i))
+          .map((d) => ({
+            lat: d.startLat,
+            lng: d.startLng,
+            color: d.color,
+          }));
 
-      globeRef.current.ringsData(ringsData);
+        globeRef.current.ringsData(ringsData);
+      } catch (error) {
+        console.error("Failed to update rings data:", error);
+      }
     }, 2000);
 
     return () => {
@@ -238,20 +270,75 @@ export function WebGLRendererConfig() {
   const { gl, size } = useThree();
 
   useEffect(() => {
-    gl.setPixelRatio(window.devicePixelRatio);
-    gl.setSize(size.width, size.height);
-    gl.setClearColor(0xffaaff, 0);
-  }, []);
+    if (typeof window === "undefined" || !gl) return;
+    
+    try {
+      gl.setPixelRatio(window.devicePixelRatio || 1);
+      gl.setSize(size.width, size.height);
+      gl.setClearColor(0xffaaff, 0);
+    } catch (error) {
+      console.warn("WebGL configuration error:", error);
+    }
+  }, [gl, size]);
 
   return null;
 }
 
+// Helper function to check WebGL support
+function isWebGLAvailable(): boolean {
+  if (typeof window === "undefined") return false;
+  
+  try {
+    const canvas = document.createElement("canvas");
+    const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+    return !!gl;
+  } catch (e) {
+    return false;
+  }
+}
+
 export function World(props: WorldProps) {
   const { globeConfig } = props;
+  const [webglAvailable, setWebglAvailable] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    setWebglAvailable(isWebGLAvailable());
+  }, []);
+
+  // Don't render until mounted to prevent hydration mismatch
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center w-full h-full min-h-[400px]">
+        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!webglAvailable) {
+    return (
+      <div className="flex items-center justify-center w-full h-full min-h-[400px]">
+        <div className="text-center">
+          <p className="text-muted-foreground">WebGL tidak tersedia</p>
+        </div>
+      </div>
+    );
+  }
+
   const scene = new Scene();
   scene.fog = new Fog(0xffffff, 400, 2000);
+  
   return (
-    <Canvas scene={scene} camera={new PerspectiveCamera(50, aspect, 180, 1800)}>
+    <Canvas 
+      scene={scene} 
+      camera={new PerspectiveCamera(50, aspect, 180, 1800)}
+      gl={{ 
+        antialias: true,
+        alpha: true,
+        powerPreference: "high-performance"
+      }}
+    >
       <WebGLRendererConfig />
       <ambientLight color={globeConfig.ambientLight} intensity={0.6} />
       <directionalLight
