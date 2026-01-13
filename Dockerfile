@@ -1,6 +1,5 @@
 FROM node:20 AS build
 
-ENV NODE_ENV production
 ENV TZ="Asia/Jakarta"
 
 WORKDIR /app
@@ -11,18 +10,19 @@ COPY package*.json ./
 COPY .env* ./
 
 # Install all dependencies (including devDependencies for build)
+# NODE_ENV is not set to production here, so devDependencies will be installed
 RUN npm ci --legacy-peer-deps
 
 # Install sharp with platform-specific binary for Linux
 RUN npm install --platform=linux --arch=x64 sharp
 
-# Copy source code
+# Copy source code (includes tsconfig.json, next.config.js, etc.)
 COPY . .
 
-# Build the application
+# Build the application (devDependencies are still available)
 RUN npm run build
 
-# Prune devDependencies and clean cache
+# Now prune devDependencies after build is complete
 RUN npm prune --production && npm cache clean --force
 
 # Reinstall sharp for production (platform-specific)
