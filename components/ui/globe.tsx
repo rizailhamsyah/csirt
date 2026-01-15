@@ -13,38 +13,83 @@ let PerspectiveCamera: any;
 let Vector3: any;
 
 // Lazy load Three.js modules with retry mechanism
+// Diperbaiki untuk production build dan Docker container
 async function loadThreeModules(retryCount = 0): Promise<boolean> {
   if (typeof window === "undefined") return false;
   
   const MAX_RETRIES = 3;
   
   try {
-    // Try to import three module
+    // Try to import three module dengan berbagai metode
     let threeModule;
     try {
+      // Coba dynamic import dulu
       threeModule = await import("three");
-    } catch (threeError) {
-      console.error("Failed to import 'three' module:", threeError);
-      if (retryCount < MAX_RETRIES) {
-        // Wait before retry
-        await new Promise(resolve => setTimeout(resolve, 500 * (retryCount + 1)));
-        return loadThreeModules(retryCount + 1);
+    } catch (threeError: any) {
+      // Jika dynamic import gagal, coba require (untuk production build)
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        threeModule = require("three");
+      } catch (requireError) {
+        console.error("Failed to import 'three' module (both import and require failed):", {
+          importError: threeError?.message,
+          requireError: requireError,
+        });
+        if (retryCount < MAX_RETRIES) {
+          await new Promise(resolve => setTimeout(resolve, 500 * (retryCount + 1)));
+          return loadThreeModules(retryCount + 1);
+        }
+        throw new Error("Failed to load 'three' module after retries");
       }
-      throw new Error("Failed to load 'three' module after retries");
     }
     
     // Try to import three-globe module
+    // Di production build, dynamic import mungkin perlu waktu lebih lama
     let globeModule;
     try {
-      globeModule = await import("three-globe");
-    } catch (globeError) {
-      console.error("Failed to import 'three-globe' module:", globeError);
+      // Coba dynamic import dengan timeout yang lebih panjang
+      globeModule = await Promise.race([
+        import("three-globe"),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("Import timeout")), 10000)
+        )
+      ]) as any;
+      
+      // Handle default export
+      if (globeModule && typeof globeModule === 'object') {
+        globeModule = globeModule.default || globeModule;
+      }
+    } catch (globeError: any) {
+      // Log error detail untuk debugging
+      console.error("Failed to import 'three-globe' module:", {
+        error: globeError?.message,
+        stack: globeError?.stack,
+        name: globeError?.name,
+        code: globeError?.code,
+      });
+      
       if (retryCount < MAX_RETRIES) {
-        // Wait before retry
-        await new Promise(resolve => setTimeout(resolve, 500 * (retryCount + 1)));
+        const delay = 1000 * (retryCount + 1);
+        console.log(`Retrying three-globe import in ${delay}ms... (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
         return loadThreeModules(retryCount + 1);
       }
-      throw new Error("Failed to load 'three-globe' module after retries");
+      
+      // Jika semua retry gagal, throw error dengan detail
+      throw new Error(
+        `Failed to load 'three-globe' module after ${MAX_RETRIES} retries. ` +
+        `Last error: ${globeError?.message || 'Unknown error'}. ` +
+        `Please ensure 'three-globe' is installed: npm install three-globe`
+      );
+    }
+    
+    // Normalize module exports
+    if (threeModule && typeof threeModule === 'object' && 'default' in threeModule && !threeModule.Color) {
+      threeModule = threeModule.default;
+    }
+    
+    if (globeModule && typeof globeModule === 'object' && 'default' in globeModule) {
+      globeModule = globeModule.default;
     }
     
     // Assign modules
@@ -52,15 +97,26 @@ async function loadThreeModules(retryCount = 0): Promise<boolean> {
       throw new Error("Modules imported but are undefined");
     }
     
-    Color = threeModule.Color;
-    Scene = threeModule.Scene;
-    Fog = threeModule.Fog;
-    PerspectiveCamera = threeModule.PerspectiveCamera;
-    Vector3 = threeModule.Vector3;
+    // Extract Three.js classes
+    Color = threeModule.Color || threeModule.default?.Color;
+    Scene = threeModule.Scene || threeModule.default?.Scene;
+    Fog = threeModule.Fog || threeModule.default?.Fog;
+    PerspectiveCamera = threeModule.PerspectiveCamera || threeModule.default?.PerspectiveCamera;
+    Vector3 = threeModule.Vector3 || threeModule.default?.Vector3;
     ThreeGlobe = globeModule.default || globeModule;
     
     // Verify all modules are loaded
     if (!Color || !Scene || !Fog || !PerspectiveCamera || !Vector3 || !ThreeGlobe) {
+      console.error("Module structure:", {
+        threeModule: Object.keys(threeModule || {}),
+        globeModule: Object.keys(globeModule || {}),
+        Color: !!Color,
+        Scene: !!Scene,
+        Fog: !!Fog,
+        PerspectiveCamera: !!PerspectiveCamera,
+        Vector3: !!Vector3,
+        ThreeGlobe: !!ThreeGlobe,
+      });
       throw new Error("Some Three.js modules failed to load");
     }
     
@@ -74,12 +130,17 @@ async function loadThreeModules(retryCount = 0): Promise<boolean> {
       error: errorMessage,
       stack: errorStack,
       retryCount,
-      maxRetries: MAX_RETRIES
+      maxRetries: MAX_RETRIES,
+      environment: {
+        isProduction: process.env.NODE_ENV === 'production',
+        isDocker: process.env.DOCKER === 'true' || !!process.env.DOCKER_CONTAINER,
+      }
     });
     
     // Log more details for debugging
-    if (errorMessage.includes("Cannot find module") || errorMessage.includes("Failed to fetch")) {
-      console.error("Module resolution error - check if 'three' and 'three-globe' are installed");
+    if (errorMessage.includes("Cannot find module") || errorMessage.includes("Failed to fetch") || errorMessage.includes("Cannot resolve")) {
+      console.error("Module resolution error - check if 'three' and 'three-globe' are installed in node_modules");
+      console.error("Try running: npm install three three-globe");
     } else if (errorMessage.includes("NetworkError") || errorMessage.includes("Failed to fetch")) {
       console.error("Network error - check internet connection");
     }
@@ -87,7 +148,6 @@ async function loadThreeModules(retryCount = 0): Promise<boolean> {
     if (retryCount < MAX_RETRIES) {
       const delay = 1000 * (retryCount + 1);
       console.log(`Retrying module load in ${delay}ms... (attempt ${retryCount + 1}/${MAX_RETRIES})`);
-      // Wait before retry with exponential backoff
       await new Promise(resolve => setTimeout(resolve, delay));
       return loadThreeModules(retryCount + 1);
     }
@@ -249,47 +309,65 @@ export function Globe({ globeConfig, data }: WorldProps) {
         return;
       }
       
+      // Pastikan modules sudah di-load dan extended
       if (!isExtended || !modulesLoaded) {
         // Try to extend first and load modules
         const extended = await ensureExtended();
         if (!extended) {
           retryCountRef.current++;
           // If extend failed, retry after a short delay
-          setTimeout(initGlobe, 100);
+          setTimeout(initGlobe, 200);
           return;
         }
       }
       
+      // Pastikan ThreeGlobe tersedia
+      if (!ThreeGlobe) {
+        retryCountRef.current++;
+        if (retryCountRef.current < MAX_RETRIES) {
+          setTimeout(initGlobe, 200);
+        }
+        return;
+      }
+      
+      // Pastikan groupRef sudah tersedia (ref hanya tersedia setelah render)
+      if (!groupRef.current) {
+        retryCountRef.current++;
+        if (retryCountRef.current < MAX_RETRIES) {
+          setTimeout(initGlobe, 100);
+        }
+        return;
+      }
+      
+      // Inisialisasi globe jika semua kondisi terpenuhi
       if (!globeRef.current && groupRef.current && ThreeGlobe) {
         try {
           globeRef.current = new ThreeGlobe();
           (groupRef.current as any).add(globeRef.current);
           setIsInitialized(true);
+          retryCountRef.current = 0; // Reset retry count on success
         } catch (error) {
           console.error("Failed to initialize ThreeGlobe:", error);
           retryCountRef.current++;
           // Retry after delay if initialization failed
           if (retryCountRef.current < MAX_RETRIES) {
-            setTimeout(initGlobe, 200);
+            setTimeout(initGlobe, 300);
           }
         }
       }
     };
     
-    // Start initialization with timeout
-    const timeoutId = setTimeout(() => {
-      if (!isInitialized && retryCountRef.current < MAX_RETRIES) {
-        console.warn("Globe initialization timeout, retrying...");
-        initGlobe();
-      }
-    }, 1000);
-    
-    initGlobe();
+    // Tunggu sedikit untuk memastikan ref sudah tersedia setelah render
+    // Hanya jalankan sekali saat mount, tidak perlu re-run saat isInitialized berubah
+    const initTimeout = setTimeout(() => {
+      initGlobe();
+    }, 50);
     
     return () => {
-      clearTimeout(timeoutId);
+      clearTimeout(initTimeout);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - hanya jalankan sekali saat mount
 
   // Build material when globe is initialized or when relevant props change
   useEffect(() => {

@@ -8,7 +8,7 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, webpack }) => {
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
@@ -17,6 +17,45 @@ const nextConfig = {
         crypto: false,
       };
     }
+    
+    // Pastikan three-globe tidak di-bundle untuk SSR (hanya untuk server-side)
+    if (isServer) {
+      config.externals = config.externals || [];
+      if (Array.isArray(config.externals)) {
+        config.externals.push({
+          'three': 'commonjs three',
+          'three-globe': 'commonjs three-globe',
+        });
+      } else if (typeof config.externals === 'object') {
+        config.externals = [
+          config.externals,
+          {
+            'three': 'commonjs three',
+            'three-globe': 'commonjs three-globe',
+          }
+        ];
+      }
+    }
+    
+    // Untuk client-side, pastikan three-globe di-bundle dengan benar
+    // Jangan split chunks untuk three-globe agar lebih mudah di-load
+    if (!isServer) {
+      config.optimization = {
+        ...config.optimization,
+        splitChunks: {
+          ...config.optimization.splitChunks,
+          cacheGroups: {
+            ...config.optimization.splitChunks?.cacheGroups,
+            // Jangan split three-globe, biarkan di-bundle dengan chunk utama atau async
+            default: {
+              ...config.optimization.splitChunks?.cacheGroups?.default,
+              minChunks: 1,
+            },
+          },
+        },
+      };
+    }
+    
     return config;
   },
   turbopack: {},
