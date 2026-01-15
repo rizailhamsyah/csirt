@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/carousel"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { GlobeHero } from "@/components/GlobeHero"
 import { Meteors } from "@/components/ui/meteors"
 import { Footer } from "@/components/Footer"
 import { layanan, prinsipKeamanan, visiMisi } from "@/data/data"
@@ -48,7 +47,16 @@ export default function Home() {
               </div>
             </div>
             <div className="hidden lg:block order-first lg:order-last animate-in fade-in slide-in-from-right duration-700 overflow-visible">
-              <GlobeHero />
+              <div className="relative w-full h-full min-h-125 flex items-center justify-center">
+                <Image
+                  src="/cyber.png"
+                  alt="Cyber Security"
+                  width={800}
+                  height={600}
+                  className="object-contain w-full h-auto max-w-full"
+                  priority
+                />
+              </div>
             </div>
           </div>
         </div>

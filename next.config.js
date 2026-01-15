@@ -9,57 +9,13 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  webpack: (config, { isServer, webpack }) => {
+  webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
         fs: false,
         path: false,
         crypto: false,
-      };
-    }
-    
-    // Pastikan three-globe tidak di-bundle untuk SSR (hanya untuk server-side)
-    // Ini mencegah WebGL context error di Docker container saat build
-    // Referensi: https://discourse.threejs.org/t/why-is-threejs-not-working-on-docker/44100
-    if (isServer) {
-      config.externals = config.externals || [];
-      if (Array.isArray(config.externals)) {
-        config.externals.push({
-          'three': 'commonjs three',
-          'three-globe': 'commonjs three-globe',
-          '@react-three/fiber': 'commonjs @react-three/fiber',
-          '@react-three/drei': 'commonjs @react-three/drei',
-        });
-      } else if (typeof config.externals === 'object') {
-        config.externals = [
-          config.externals,
-          {
-            'three': 'commonjs three',
-            'three-globe': 'commonjs three-globe',
-            '@react-three/fiber': 'commonjs @react-three/fiber',
-            '@react-three/drei': 'commonjs @react-three/drei',
-          }
-        ];
-      }
-    }
-    
-    // Untuk client-side, pastikan three-globe di-bundle dengan benar
-    // Jangan split chunks untuk three-globe agar lebih mudah di-load
-    if (!isServer) {
-      config.optimization = {
-        ...config.optimization,
-        splitChunks: {
-          ...config.optimization.splitChunks,
-          cacheGroups: {
-            ...config.optimization.splitChunks?.cacheGroups,
-            // Jangan split three-globe, biarkan di-bundle dengan chunk utama atau async
-            default: {
-              ...config.optimization.splitChunks?.cacheGroups?.default,
-              minChunks: 1,
-            },
-          },
-        },
       };
     }
     
