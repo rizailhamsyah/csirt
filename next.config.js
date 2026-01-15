@@ -19,12 +19,16 @@ const nextConfig = {
     }
     
     // Pastikan three-globe tidak di-bundle untuk SSR (hanya untuk server-side)
+    // Ini mencegah WebGL context error di Docker container saat build
+    // Referensi: https://discourse.threejs.org/t/why-is-threejs-not-working-on-docker/44100
     if (isServer) {
       config.externals = config.externals || [];
       if (Array.isArray(config.externals)) {
         config.externals.push({
           'three': 'commonjs three',
           'three-globe': 'commonjs three-globe',
+          '@react-three/fiber': 'commonjs @react-three/fiber',
+          '@react-three/drei': 'commonjs @react-three/drei',
         });
       } else if (typeof config.externals === 'object') {
         config.externals = [
@@ -32,6 +36,8 @@ const nextConfig = {
           {
             'three': 'commonjs three',
             'three-globe': 'commonjs three-globe',
+            '@react-three/fiber': 'commonjs @react-three/fiber',
+            '@react-three/drei': 'commonjs @react-three/drei',
           }
         ];
       }
