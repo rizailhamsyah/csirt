@@ -25,7 +25,13 @@ RUN apt-get update && apt-get install -y \
     mesa-utils \
     libgl1-mesa-glx \
     libglib2.0-0 \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    libc6 \
+    libcairo2-dev \
+    libpango1.0-dev \
+    libjpeg-dev \
+    libgif-dev \
+    librsvg2-dev
 
 COPY .env* ./
 COPY package*.json ./
