@@ -56,6 +56,10 @@ export interface KontakAlamat {
   alamat: string[]
 }
 
+export interface KontakTim {
+  tim: string[]
+}
+
 export interface KontakMaps {
   src: string
   title: string
@@ -298,33 +302,39 @@ export const faqs: FAQ[] = [
 
 export const kontakEmail: KontakEmail[] = [
   {
-    label: "Konsultasi",
-    email: "consult@csirt.example.com",
-    href: "mailto:consult@csirt.example.com",
-  },
-  {
-    label: "Umum",
-    email: "info@csirt.example.com",
-    href: "mailto:info@csirt.example.com",
+    label: "Office",
+    email: "csirt.pkc@pupuk-kujang.co.id",
+    href: "mailto:csirt.pkc@pupuk-kujang.co.id",
   },
 ]
 
+export const kontakTim: KontakTim = {
+  tim: [
+    "PT. Pupuk Kujang - Computer Security Incident Response Team Disingkat : PKC-CSIRT",
+  ],
+}
+
 export const kontakTelepon: KontakTelepon[] = [
   {
-    label: "Hotline 24/7",
-    nomor: "+62 123 456 789",
-    href: "tel:+62123456789",
+    label: "Office",
+    nomor: "(+62-264) 316 141 & 317 007",
+    href: "tel:+62123456790",
   },
   {
-    label: "Office",
-    nomor: "+62 123 456 790",
-    href: "tel:+62123456790",
+    label: "Herlambang Adi Budiman",
+    nomor: "(+62) 112 0253 815",
+    href: "tel:+621120253815",
+  },
+  {
+    label: "Rifzki Adiyaksa",
+    nomor: "(+62) 112 0253 814",
+    href: "tel:+621120253814",
   },
 ]
 
 export const kontakAlamat: KontakAlamat = {
   alamat: [
-    "Jalan Jendral Ahmad Yani No.39, Kalihurip, Kec. Cikampek, Karawang, Jawa Barat 41373",
+    "Jl. Jend. A. Yani No.39 Cikampek, Kab. Karawang, Jawa Barat",
   ],
 }
 

@@ -1,8 +1,8 @@
 import { Header } from "@/components/Header"
 import { Footer } from "@/components/Footer"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Mail, Phone, MapPin, MessageSquare } from "lucide-react"
-import { kontakEmail, kontakTelepon, kontakAlamat, kontakMaps } from "@/data/data"
+import { Mail, Phone, MapPin, MessageSquare, Building } from "lucide-react"
+import { kontakEmail, kontakTelepon, kontakAlamat, kontakMaps, kontakTim } from "@/data/data"
 
 export default function HubungiKami() {
   return (
@@ -35,6 +35,28 @@ export default function HubungiKami() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Kolom Pertama - Informasi Kontak */}
               <div className="space-y-6">
+                <Card className="border-2 hover:shadow-xl hover:shadow-purple-500/20 transition-all duration-300 hover:border-purple-500/30 group overflow-hidden relative">
+                  <div className="absolute inset-0 bg-linear-to-br from-purple-500/5 via-pink-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <CardHeader className="relative z-10">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-linear-to-br from-purple-500/20 to-pink-500/20 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                        <Building className="w-5 h-5 text-purple-600" />
+                      </div>
+                      <CardTitle className="text-xl font-bold">Tim CSIRT</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="relative z-10">
+                    <p className="text-base leading-relaxed text-muted-foreground">
+                      {kontakTim.tim.map((line, index) => (
+                        <span key={index}>
+                          {line}
+                          {index < kontakTim.tim.length - 1 && <br />}
+                        </span>
+                      ))}
+                    </p>
+                  </CardContent>
+                </Card>
+
                 <Card className="border-2 hover:shadow-xl hover:shadow-primary/20 transition-all duration-300 hover:border-primary/30 group overflow-hidden relative">
                   <div className="absolute inset-0 bg-linear-to-br from-primary/5 via-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <CardHeader className="relative z-10">
@@ -121,7 +143,7 @@ export default function HubungiKami() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="relative z-10">
-                    <div className="w-full h-150 rounded-lg overflow-hidden border-2 border-primary/20 shadow-lg">
+                    <div className="w-full h-185 rounded-lg overflow-hidden border-2 border-primary/20 shadow-lg -mt-5">
                       <iframe
                         src={kontakMaps.src}
                         width="100%"

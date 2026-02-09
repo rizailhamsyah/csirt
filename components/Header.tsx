@@ -44,6 +44,7 @@ export function Header() {
 
   const rfcItems = [
     { href: "/rfc/rfc-2350", label: "RFC - 2350", description: "Dokumen RFC 2350" },
+    { href: "/rfc/public-key-pkc-csirt", label: "Public Key PKC CSIRT", description: "File Public Key PKC CSIRT" },
   ]
 
   return (
@@ -122,7 +123,7 @@ export function Header() {
                   )}
                 </NavigationMenuTrigger>
                 <NavigationMenuContent>
-                  <div className="w-[300px] p-2">
+                  <div className="w-75 p-2">
                     <ul className="grid gap-1">
                       {rfcItems.map((item) => (
                         <li key={item.href}>
