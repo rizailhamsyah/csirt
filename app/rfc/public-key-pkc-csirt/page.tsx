@@ -25,8 +25,7 @@ export default function PublicKeyPKCCSIRT() {
               Unduh dokumen Public Key PKC CSIRT
             </p>
             <a 
-              href="#" 
-            //   href="/rfc/public-key-pkc-csirt.pdf" 
+              href="/CSIRT-Pupuk Kujang_pkc.csirt@pupuk-kujang.co.id-0x296280B4D92E82F7-pub.asc" 
               download
               className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-base font-medium px-8 py-4 shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-all duration-300 bg-linear-to-r from-blue-500 via-blue-600 to-purple-600 hover:from-blue-600 hover:via-blue-700 hover:to-purple-700 text-white cursor-pointer"
             >
