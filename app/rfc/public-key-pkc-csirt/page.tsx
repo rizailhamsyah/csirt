@@ -1,8 +1,53 @@
+"use client"
+
 import { Header } from "@/components/Header"
 import { Footer } from "@/components/Footer"
 import { Key } from "lucide-react"
 
 export default function PublicKeyPKCCSIRT() {
+  const handleDownload = async () => {
+    try {
+      const filename = "CSIRT-Pupuk_Kujang_pkc.csirt@pupuk-kujang.co.id-0x296280B4D92E82F7-pub.asc"
+      
+      const encodedFilename1 = encodeURIComponent(filename)
+      
+      const encodedFilename2 = filename.replace(/ /g, '%20')
+      
+      let fileUrl = `/${encodedFilename1}`
+      let response = await fetch(fileUrl, { method: 'HEAD' })
+      
+      if (!response.ok) {
+        fileUrl = `/${encodedFilename2}`
+        response = await fetch(fileUrl, { method: 'HEAD' })
+      }
+      
+      if (!response.ok) {
+        fileUrl = `/${filename}`
+        response = await fetch(fileUrl, { method: 'HEAD' })
+      }
+      
+      if (!response.ok) {
+        throw new Error(`File tidak ditemukan. Status: ${response.status}`)
+      }
+      
+      const downloadResponse = await fetch(fileUrl)
+      const blob = await downloadResponse.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = "CSIRT-Pupuk-Kujang-pkc.csirt-public-key.asc"
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      console.error('Error downloading file:', error)
+      const filename = "CSIRT-Pupuk_Kujang_pkc.csirt@pupuk-kujang.co.id-0x296280B4D92E82F7-pub.asc"
+      const encodedFilename = encodeURIComponent(filename)
+      window.open(`/${encodedFilename}`, '_blank')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -24,13 +69,12 @@ export default function PublicKeyPKCCSIRT() {
             <p className="text-lg sm:text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto mb-8">
               Unduh dokumen Public Key PKC CSIRT
             </p>
-            <a 
-              href="/CSIRT-Pupuk Kujang_pkc.csirt@pupuk-kujang.co.id-0x296280B4D92E82F7-pub.asc" 
-              download
+            <button
+              onClick={handleDownload}
               className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-base font-medium px-8 py-4 shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-all duration-300 bg-linear-to-r from-blue-500 via-blue-600 to-purple-600 hover:from-blue-600 hover:via-blue-700 hover:to-purple-700 text-white cursor-pointer"
             >
               Download Dokumen
-            </a>
+            </button>
           </div>
         </div>
       </section>

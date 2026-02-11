@@ -52,6 +52,37 @@ const nextConfig = {
             value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()'
           }
         ]
+      },
+      // Headers khusus untuk file download (.asc, .pdf, dll)
+      {
+        source: '/:path*.asc',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'application/pgp-keys'
+          },
+          {
+            key: 'Content-Disposition',
+            value: 'attachment'
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable'
+          }
+        ]
+      },
+      {
+        source: '/:path*.pdf',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'application/pdf'
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable'
+          }
+        ]
       }
     ]
   }
