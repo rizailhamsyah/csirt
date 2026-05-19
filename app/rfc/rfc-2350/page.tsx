@@ -33,7 +33,7 @@ export default function RFC1() {
               <CardContent className="p-0">
                 <div className="w-full h-200 rounded-lg overflow-hidden">
                   <iframe
-                    src="/rfc/RFC-2350.pdf"
+                    src="/rfc/2-RFC-2350-PKC-Signed.pdf"
                     className="w-full h-full border-0"
                     title="RFC 2350"
                     allow="fullscreen"
