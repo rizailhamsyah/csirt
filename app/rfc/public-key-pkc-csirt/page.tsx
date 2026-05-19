@@ -7,7 +7,7 @@ import { Key } from "lucide-react"
 export default function PublicKeyPKCCSIRT() {
   const handleDownload = async () => {
     try {
-      const filename = "CSIRT-Pupuk_Kujang_pkc.csirt@pupuk-kujang.co.id-0x296280B4D92E82F7-pub.asc"
+      const filename = "OpenPGP-public-key.asc"
       
       const encodedFilename1 = encodeURIComponent(filename)
       
