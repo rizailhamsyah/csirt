@@ -1,12 +1,12 @@
-Status: pending
+Status: done
 
 Commits:
-- chore: wire Server Action encryption key and build id into Docker
+- b7f7ab5 chore: wire Server Action encryption key and build id into Docker
 
 Test summary:
-- Updated Dockerfile to accept build args and set env for NEXT_SERVER_ACTIONS_ENCRYPTION_KEY and NEXT_PUBLIC_BUILD_ID.
-- Added .env.example with placeholders.
-- No runtime tests performed here; manual build recommended.
+- Dockerfile updated: build stage and production stage now accept ARG and expose ENV for NEXT_SERVER_ACTIONS_ENCRYPTION_KEY and NEXT_PUBLIC_BUILD_ID.
+- Added `.env.example` with placeholders only.
+- No automated runtime build/test was run in this environment; recommend ops run the provided example build command to verify image.
 
 Concerns:
 - Ensure CI/ops supply NEXT_SERVER_ACTIONS_ENCRYPTION_KEY securely at build time.
