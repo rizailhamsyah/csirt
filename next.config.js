@@ -34,7 +34,7 @@ const nextConfig = {
         ]
       },
       {
-        source: '/:path*',
+        source: '/((?!_next/static).*)',
         headers: [
           {
             key: 'Cache-Control',
